@@ -1,0 +1,9 @@
+data_config: '/home/kunhan/workspace/projects/SegTransformer/config/data/NO1_thorax.yaml'
+
+start_channel: 32
+deep_supervision: false
+
+ckpt_dir: '/home/kunhan/workspace/projects/SegTransformer/ckpt/unet'
+ckpt_fn: null
+
+pred_save_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_pred_unet'

@@ -1,0 +1,66 @@
+dataset:
+  3d:
+    roi_names: [eso, heart, lungl, lungr, spinalcord, trachea]
+    roi_names_dict: {eso: 0,
+                     heart: 1,
+                     lungl: 2,
+                     lungr: 3,
+                     spinalcord: 4,
+                     trachea: 5}
+    with_issue_air_mask: true
+    # paths to the datasets
+    data_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_resample_gt'
+    # path to save predicted mask
+    pred_save_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_pred_segtransformer'
+    # path to pid csv
+    pids_path: '/home/kunhan/workspace/projects/SegTransformer/config/data/all_4_thorax_NO1.csv'
+    train_pids_path: '/home/kunhan/workspace/projects/SegTransformer/config/data/used_train_set_4_thorax_NO1.csv'
+    test_pids_path: '/home/kunhan/workspace/projects/SegTransformer/config/data/used_test_set_4_thorax_NO1.csv'
+
+
+    transformer:
+      train:
+        - name: Normalize
+          use_bodymask: false
+        - name: RandomAffine
+        - name: ElasticDeformation
+        - name: ToTensor
+      val:
+        - name: Normalize
+          use_bodymask: false
+        - name: ToTensor
+      pred:
+        - name: Normalize
+          use_bodymask: false
+        - name: ToTensor
+  2d:
+    n_slice: 3 # must be odd number
+
+# data loaders configuration
+loader:
+  3d:
+    train:
+      batch_size: 2
+      num_workers: 0
+      shuffle: true
+    val:
+      batch_size: 2
+      num_workers: 0
+      shuffle: true
+    pred:
+      batch_size: 1  # must be set to 1, each time predict one pid
+      num_workers: 0
+      shuffle: false
+  2d:
+    train:
+      batch_size: 4
+      num_workers: 0
+      shuffle: true
+    val:
+      batch_size: 4
+      num_workers: 0
+      shuffle: true
+    pred:
+      batch_size: 2
+      num_workers: 0
+      shuffle: false

@@ -1,0 +1,33 @@
+data_config: '/home/kunhan/workspace/projects/SegTransformer/config/data/NO1_thorax.yaml'
+
+start_channel: 32
+deep_supervision: false
+
+lr: 0.0001
+n_epoch: 500
+step_size: 150
+weight_decay: 0.0001
+loss:
+  attention_loss_weight: [1, 1, 1, 1, 1]
+  focal_loss_weight: 0.5
+  dice_loss_weight: 1
+
+write_summary_loss_batch_step: 100
+write_summary_2d_batch_step: 500
+
+logging_epoch_step: 1
+val_model_epoch_step: 2
+logging_dir: '/home/kunhan/workspace/projects/SegTransformer/log/segtransformer'
+ckpt_dir: '/home/kunhan/workspace/projects/SegTransformer/ckpt/segtransformer'
+
+load_checkpoint: false
+
+load_checkpoint_encoder: false
+freeze_encoder: false
+unfreeze_encoder_epoch: null
+
+load_checkpoint_decoder: false
+freeze_decoder: false
+unfreeze_decoder_epoch: null
+
+ckpt_fn: null
