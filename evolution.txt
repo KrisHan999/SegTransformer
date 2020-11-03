@@ -1,0 +1,4 @@
+model 1: 
+	loss: focal loss and dice loss
+	loss term: attention map from transformer decoder and output.
+	output: output with air and issue

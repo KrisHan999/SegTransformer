@@ -52,13 +52,11 @@ def _sigmoid_focol_loss(pred, target, target_roi_weight, alpha: float = 0.25, ga
 class Criterion(nn.Module):
     def __init__(self, config):
         super(Criterion, self).__init__()
-        self.focal_loss_weight = config['loss']['focal_loss_weight']
         self.dice_loss_weight = config['loss']['dice_loss_weight']
         self.deep_supervision = config['deep_supervision']
 
     def forward(self, pred, target, target_roi_weight, deep_supervision=False, need_sigmoid=True,
                 layer_weight: Optional[Tensor] = None):
-        focal_loss = 0
         dice_loss = 0
         loss = 0
         loss_dict = {}
@@ -68,27 +66,22 @@ class Criterion(nn.Module):
                     weight = layer_weight[i]
                 else:
                     weight = 1
-                focal_loss_ = _sigmoid_focol_loss(pred_single, target, target_roi_weight, need_sigmoid=need_sigmoid)
                 dice_loss_ = _dice_loss(pred_single, target, target_roi_weight, need_sigmoid=need_sigmoid)
-                loss_ = (focal_loss_ * self.focal_loss_weight + dice_loss_ * self.dice_loss_weight) * weight
+                loss_ = dice_loss_ * self.dice_loss_weight * weight
                 # print(focal_loss_, dice_loss_, loss_)
-                loss_dict[f"layer_{i}"] = {
-                    "focal_loss": focal_loss_.detach().item(),
-                    "dice_loss": dice_loss_.detach().item(),
-                    "loss": loss_.detach().item()
-                }
-                focal_loss += focal_loss_
                 dice_loss += dice_loss_
                 loss += loss_
+                loss_dict[f"layer_{i}"] = {
+                    "dice_loss": dice_loss_.detach().item()
+                    # "loss": loss_.detach().item()
+                }
         else:
-            focal_loss = _sigmoid_focol_loss(pred[-1], target, target_roi_weight, need_sigmoid=need_sigmoid)
             dice_loss = _dice_loss(pred[-1], target, target_roi_weight, need_sigmoid=need_sigmoid)
-            loss = focal_loss * self.focal_loss_weight + dice_loss * self.dice_loss_weight
+            loss = dice_loss * self.dice_loss_weight
 
             loss_dict = {
-                "focal_loss": focal_loss.detach().item(),
-                "dice_loss": dice_loss.detach().item(),
-                "loss": loss.detach().item()
+                "dice_loss": dice_loss.detach().item()
+                # "loss": loss.detach().item()
             }
 
         return loss, loss_dict

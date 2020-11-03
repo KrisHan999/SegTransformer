@@ -9,7 +9,6 @@ step_size: 150
 weight_decay: 0.0001
 loss:
   attention_loss_weight: [1, 1, 1, 1, 1]
-  focal_loss_weight: 0.5
   dice_loss_weight: 1
 
 write_summary_loss_batch_step: 100
@@ -20,7 +19,7 @@ val_model_epoch_step: 2
 logging_dir: '/home/kunhan/workspace/projects/SegTransformer/log/segtransformer'
 ckpt_dir: '/home/kunhan/workspace/projects/SegTransformer/ckpt/segtransformer'
 
-load_checkpoint: false
+load_checkpoint: true
 
 load_checkpoint_encoder: false
 freeze_encoder: false
@@ -30,4 +29,4 @@ load_checkpoint_decoder: false
 freeze_decoder: false
 unfreeze_decoder_epoch: null
 
-ckpt_fn: null
+ckpt_fn: 'ckpt_2020-11-02-18-32_Epoch_7.ckpt'

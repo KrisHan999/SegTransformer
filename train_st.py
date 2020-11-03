@@ -124,8 +124,7 @@ def main():
     logger.info(f'Starting training from epoch: {epoch_start}')
     for epoch in range(epoch_start, config['n_epoch']):
         logger.info(f"Epoch: {epoch}/{config['n_epoch']}")
-        epoch_mask_loss = 0
-        epoch_mask_loss_focal = 0
+        epoch_loss = 0
         epoch_mask_loss_dice = 0
         epoch_attn_loss_dict = {}
         n_batch_3d = len(dataloader_3d)
@@ -152,49 +151,42 @@ def main():
                     optimizer.step()
 
                     global_step += 1
-                    loss_mask_scalar = loss_dict_mask["loss"]
-                    loss_mask_focal_scalar = loss_dict_mask["focal_loss"]
                     loss_mask_dice_scalar = loss_dict_mask["dice_loss"]
-                    epoch_mask_loss += loss_mask_scalar
-                    epoch_mask_loss_focal += loss_mask_focal_scalar
+                    loss_scalar = loss.detach().item()
                     epoch_mask_loss_dice += loss_mask_dice_scalar
+                    epoch_loss += loss_scalar
 
                     for key, value in loss_dict_attn_map.items():
                         epoch_attn_loss_dict.setdefault(key, dict())
-                        epoch_attn_loss_dict[key].setdefault("epoch_attn_loss", 0)
-                        epoch_attn_loss_dict[key].setdefault("epoch_attn_loss_focal", 0)
                         epoch_attn_loss_dict[key].setdefault("epoch_attn_loss_dice", 0)
-                        epoch_attn_loss_dict[key]["epoch_attn_loss"] += value["loss"]
-                        epoch_attn_loss_dict[key]["epoch_attn_loss_focal"] += value["focal_loss"]
                         epoch_attn_loss_dict[key]["epoch_attn_loss_dice"] += value["dice_loss"]
 
-                    postfix_dict = {'loss (batch)': loss_mask_scalar, 'loss_focal': loss_mask_focal_scalar,
-                           'loss_dice': loss_mask_dice_scalar, 'global_step': global_step}
+                    postfix_dict = {'loss (batch)': loss_scalar, 'loss_dice': loss_mask_dice_scalar,
+                                    'global_step': global_step}
                     pbar.set_postfix(
                         **postfix_dict)
                     if (global_step + 1) % (config['write_summary_loss_batch_step']) == 0:
                         postfix_dict.update(
-                            {f'loss_attention_{key}': value["loss"] for key, value in loss_dict_attn_map.items()})
+                            {f'loss_attention_{key}': value["dice_loss"] for key, value in loss_dict_attn_map.items()})
                         print(postfix_dict)
                         logger.info(
-                            f"\tBatch: {idx}/{n_batch_2d}, Loss: {loss_mask_scalar}, Focal_loss: {loss_mask_focal_scalar}, Dice_loss: {loss_mask_dice_scalar}")
-                        writer.add_scalar('Loss_train/train', loss_mask_scalar, global_step)
-                        writer.add_scalar('Loss_train/train_focal', loss_mask_focal_scalar, global_step)
+                            f"\tBatch: {idx}/{n_batch_2d}, Loss: {loss_scalar}, Dice_loss: {loss_mask_dice_scalar}")
+                        writer.add_scalar('Loss_train/train', loss_scalar, global_step)
                         writer.add_scalar('Loss_train/train_dice', loss_mask_dice_scalar, global_step)
 
                         for key, value in loss_dict_attn_map.items():
-                            writer.add_scalar(f'Loss_train/train/attention_{key}', value["loss"], global_step)
-                            writer.add_scalar(f'Loss_train/train_focal/attention_{key}', value["focal_loss"], global_step)
                             writer.add_scalar(f'Loss_train/train_dice/attention_{key}', value["dice_loss"], global_step)
 
                     if (global_step + 1) % (config['write_summary_2d_batch_step']) == 0:
                         writer.add_images('train/images', torch.unsqueeze(img[:, n_channel // 2], 1), global_step)
-                        writer.add_images('train/gt_masks', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True), global_step)
+                        writer.add_images('train/gt_masks', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True),
+                                          global_step)
                         for r_i, roi_name in enumerate((data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
-                            writer.add_images(f'train/gt_masks_{roi_name}', mask_gt[:, r_i:r_i+1], global_step)
+                            writer.add_images(f'train/gt_masks_{roi_name}', mask_gt[:, r_i:r_i + 1], global_step)
                         if data_config['dataset']['3d']['with_issue_air_mask']:
                             writer.add_images('train/pred_masks',
-                                              torch.sum(mask_pred[0][:, :-2] > 0, dim=1, keepdim=True) >= 1, global_step)
+                                              torch.sum(mask_pred[0][:, :-2] > 0, dim=1, keepdim=True) >= 1,
+                                              global_step)
                             writer.add_images('train/pred_masks_raw',
                                               torch.sum(mask_pred[0][:, :-2], dim=1, keepdim=True), global_step)
                         else:
@@ -203,48 +195,44 @@ def main():
                             writer.add_images('train/pred_masks_raw',
                                               torch.sum(mask_pred[0], dim=1, keepdim=True), global_step)
                         for l_i, attn_map_single in enumerate(attention_map_out):
-                            for r_i, roi_name in enumerate((data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
+                            for r_i, roi_name in enumerate(
+                                    (data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
                                 writer.add_images(f'train/pred_masks_{roi_name}_layer_{l_i}',
-                                                  attn_map_single[:, r_i:r_i+1], global_step)
+                                                  attn_map_single[:, r_i:r_i + 1], global_step)
                 pbar.update()
 
             scheduler.step()
             # log epoch loss
             if (epoch + 1) % config['logging_epoch_step'] == 0:
                 writer.add_scalar('lr', optimizer.param_groups[0]['lr'], epoch)
-                writer.add_scalar('Loss_epoch_train/train', epoch_mask_loss, epoch)
-                writer.add_scalar('Loss_epoch_train/train_focal', epoch_mask_loss_focal, epoch)
+                writer.add_scalar('Loss_epoch_train/train', epoch_loss, epoch)
                 writer.add_scalar('Loss_epoch_train/train_dice', epoch_mask_loss_dice, epoch)
                 for key, value in epoch_attn_loss_dict.items():
-                    writer.add_scalar(f'Loss_epoch_train/train/attention_{key}', value["epoch_attn_loss"], epoch)
-                    writer.add_scalar(f'Loss_epoch_train/train_focal/attention_{key}', value["epoch_attn_loss_focal"], epoch)
-                    writer.add_scalar(f'Loss_epoch_train/train_dice/attention_{key}', value["epoch_attn_loss_dice"], epoch)
+                    writer.add_scalar(f'Loss_epoch_train/train_dice/attention_{key}', value["epoch_attn_loss_dice"],
+                                      epoch)
                 logger.info(
-                    f"Epoch: {epoch}/{config['n_epoch']}, Train Loss: {epoch_mask_loss}, Train Loss BCE: {epoch_mask_loss_focal}, Train Loss DSC: {epoch_mask_loss_dice}")
+                    f"Epoch: {epoch}/{config['n_epoch']}, Train Loss: {epoch_loss}, Train Loss DSC: {epoch_mask_loss_dice}")
 
             # validation and save model
             if (epoch + 1) % config['val_model_epoch_step'] == 0:
-                val_loss, val_focal_loss, val_dice_loss, val_attn_loss_dict = val(model, criterion, config, data_config,
-                                                                                  n_channel, logger, writer,
-                                                                                  global_step, device)
+                val_loss, val_dice_loss, val_attn_loss_dict = val(model, criterion, config, data_config,
+                                                                  n_channel, logger, writer,
+                                                                  global_step, device)
                 writer.add_scalar('Loss_epoch_val/val', val_loss, epoch)
-                writer.add_scalar('Loss_epoch_val/val_focal', val_focal_loss, epoch)
                 writer.add_scalar('Loss_epoch_val/val_dice', val_dice_loss, epoch)
                 for key, value in val_attn_loss_dict.items():
-                    writer.add_scalar(f'Loss_epoch_val/val/attention_{key}', value["epoch_attn_loss"], epoch)
-                    writer.add_scalar(f'Loss_epoch_val/val_focal/attention_{key}', value["epoch_attn_loss_focal"], epoch)
                     writer.add_scalar(f'Loss_epoch_val/val_dice/attention_{key}', value["epoch_attn_loss_dice"], epoch)
 
                 logger.info(
-                    f"Epoch: {epoch}/{config['n_epoch']}, Validation Loss: {val_loss}, Validation Loss Focal: {val_focal_loss}, Validation Loss Dice: {val_dice_loss}")
+                    f"Epoch: {epoch}/{config['n_epoch']}, Validation Loss: {val_loss}, Validation Loss Dice: {val_dice_loss}")
 
                 os.makedirs(config['ckpt_dir'], exist_ok=True)
                 save_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler,
                                 epoch=epoch, global_step=global_step,
                                 ckpt_dir=config['ckpt_dir'], ckpt_fn=f'ckpt_{date_time}_Epoch_{epoch}.ckpt')
 
-                if best_loss > val_loss:
-                    best_loss = val_loss
+                if best_loss > val_dice_loss:
+                    best_loss = val_dice_loss
                     for filename in glob.glob(os.path.join(config['ckpt_dir'], "best_ckpt*")):
                         os.remove(filename)
                     save_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler,

@@ -8,7 +8,6 @@ def val(model, criterion, config, data_config, n_channel, logger, writer, global
     model.eval()
     dataloader_3d = create_loader_3d(data_config, 'val')
     val_loss = 0
-    val_focal_loss = 0
     val_dice_loss = 0
     val_attn_loss_dict = {}
     n_batch_3d = len(dataloader_3d)
@@ -27,34 +26,24 @@ def val(model, criterion, config, data_config, n_channel, logger, writer, global
                                                                   target_roi_weight=mask_flag, deep_supervision=True,
                                                                   need_sigmoid=False,
                                                                   layer_weight=config['loss']['attention_loss_weight'])
-
-                    loss_mask_scalar = loss_dict_mask["loss"]
-                    loss_mask_focal_scalar = loss_dict_mask["focal_loss"]
+                    loss = loss_mask + loss_attn_map
+                    loss_scalar = loss.detach().item()
                     loss_mask_dice_scalar = loss_dict_mask["dice_loss"]
-                    val_loss += loss_mask_scalar
-                    val_focal_loss += loss_mask_focal_scalar
+                    val_loss += loss_scalar
                     val_dice_loss += loss_mask_dice_scalar
 
                     for key, value in loss_dict_attn_map.items():
                         val_attn_loss_dict.setdefault(key, dict())
-                        val_attn_loss_dict[key].setdefault("epoch_attn_loss", 0)
-                        val_attn_loss_dict[key].setdefault("epoch_attn_loss_focal", 0)
                         val_attn_loss_dict[key].setdefault("epoch_attn_loss_dice", 0)
-                        val_attn_loss_dict[key]["epoch_attn_loss"] += value["loss"]
-                        val_attn_loss_dict[key]["epoch_attn_loss_focal"] += value["focal_loss"]
                         val_attn_loss_dict[key]["epoch_attn_loss_dice"] += value["dice_loss"]
 
-                    pbar.set_postfix(**{'loss (batch)': loss_mask_scalar, 'loss_focal': loss_mask_focal_scalar,
-                                        'loss_dice': loss_mask_dice_scalar})
+                    pbar.set_postfix(**{'loss (batch)': loss_scalar, 'loss_dice': loss_mask_dice_scalar})
                 logger.info(
-                    f"\tBatch: {idx_3d}/{n_batch_3d}, Loss: {loss_mask_scalar}, Focal_loss: {loss_mask_focal_scalar}, Dice_loss: {loss_mask_dice_scalar}")
+                    f"\tBatch: {idx_3d}/{n_batch_3d}, Loss: {loss_scalar}, Dice_loss: {loss_mask_dice_scalar}")
                 pbar.update()
-            writer.add_scalar('Loss_val/val', loss_mask_scalar, global_step)
-            writer.add_scalar('Loss_val/val_focal', loss_mask_focal_scalar, global_step)
+            writer.add_scalar('Loss_val/val', loss_scalar, global_step)
             writer.add_scalar('Loss_val/val_dice', loss_mask_dice_scalar, global_step)
             for key, value in loss_dict_attn_map.items():
-                writer.add_scalar(f'Loss_val/val/attention_{key}', value["loss"], global_step)
-                writer.add_scalar(f'Loss_val/val_focal/attention_{key}', value["focal_loss"], global_step)
                 writer.add_scalar(f'Loss_val/val_dice/attention_{key}', value["dice_loss"], global_step)
 
             writer.add_images('val/images', torch.unsqueeze(img[:, n_channel // 2], 1), global_step)
@@ -76,4 +65,4 @@ def val(model, criterion, config, data_config, n_channel, logger, writer, global
                     writer.add_images(f'val/pred_masks_{roi_name}_layer_{l_i}',
                                       attn_map_single[:, r_i:r_i + 1], global_step)
     model.train()
-    return val_loss, val_focal_loss, val_dice_loss, val_attn_loss_dict
+    return val_loss, val_dice_loss, val_attn_loss_dict
