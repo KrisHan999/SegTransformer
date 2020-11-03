@@ -58,8 +58,9 @@ def val(model, criterion, config, data_config, n_channel, logger, writer, global
                 writer.add_scalar(f'Loss_val/val_dice/attention_{key}', value["dice_loss"], global_step)
 
             writer.add_images('val/images', torch.unsqueeze(img[:, n_channel // 2], 1), global_step)
-            writer.add_images('val/gt_masks', torch.sum(mask_gt, dim=1, keepdim=True), global_step)
-
+            writer.add_images('val/gt_masks', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True), global_step)
+            for r_i, roi_name in enumerate((data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
+                writer.add_images(f'val/gt_masks_{roi_name}', mask_gt[:, r_i:r_i + 1], global_step)
             if data_config['dataset']['3d']['with_issue_air_mask']:
                 writer.add_images('val/pred_masks',
                                   torch.sum(mask_pred[0][:, :-2] > 0, dim=1, keepdim=True) >= 1, global_step)
@@ -70,5 +71,9 @@ def val(model, criterion, config, data_config, n_channel, logger, writer, global
                                   torch.sum(mask_pred[0] > 0, dim=1, keepdim=True) >= 1, global_step)
                 writer.add_images('val/pred_masks_raw',
                                   torch.sum(mask_pred[0], dim=1, keepdim=True), global_step)
+            for l_i, attn_map_single in enumerate(attention_map_out):
+                for r_i, roi_name in enumerate(data_config['dataset']['3d']['roi_names'] + ["issue", "air"]):
+                    writer.add_images(f'val/pred_masks_{roi_name}_layer_{l_i}',
+                                      attn_map_single[:, r_i:r_i + 1], global_step)
     model.train()
     return val_loss, val_focal_loss, val_dice_loss, val_attn_loss_dict

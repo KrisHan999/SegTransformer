@@ -189,7 +189,9 @@ def main():
 
                     if (global_step + 1) % (config['write_summary_2d_batch_step']) == 0:
                         writer.add_images('train/images', torch.unsqueeze(img[:, n_channel // 2], 1), global_step)
-                        writer.add_images('train/gt_masks', torch.sum(mask_gt, dim=1, keepdim=True), global_step)
+                        writer.add_images('train/gt_masks', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True), global_step)
+                        for r_i, roi_name in enumerate((data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
+                            writer.add_images(f'train/gt_masks_{roi_name}', mask_gt[:, r_i:r_i+1], global_step)
                         if data_config['dataset']['3d']['with_issue_air_mask']:
                             writer.add_images('train/pred_masks',
                                               torch.sum(mask_pred[0][:, :-2] > 0, dim=1, keepdim=True) >= 1, global_step)
@@ -200,6 +202,10 @@ def main():
                                               torch.sum(mask_pred[0] > 0, dim=1, keepdim=True) >= 1, global_step)
                             writer.add_images('train/pred_masks_raw',
                                               torch.sum(mask_pred[0], dim=1, keepdim=True), global_step)
+                        for l_i, attn_map_single in enumerate(attention_map_out):
+                            for r_i, roi_name in enumerate((data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
+                                writer.add_images(f'train/pred_masks_{roi_name}_layer_{l_i}',
+                                                  attn_map_single[:, r_i:r_i+1], global_step)
                 pbar.update()
 
             scheduler.step()

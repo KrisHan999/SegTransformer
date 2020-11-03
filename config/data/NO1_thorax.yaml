@@ -9,7 +9,7 @@ dataset:
                      trachea: 5}
     with_issue_air_mask: true
     # paths to the datasets
-    data_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_resample_gt'
+    data_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_kunhan_RS_gt_resample'
     # path to save predicted mask
     pred_save_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_pred_segtransformer'
     # path to pid csv

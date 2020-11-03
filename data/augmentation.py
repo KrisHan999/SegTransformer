@@ -703,11 +703,6 @@ class ToTensor(object):
                                                                 "exit on ToTensor "
             volume['img'] = torch.from_numpy(volume['img'].astype(dtype=np.float32))
 
-        if 'bodymask' in volume:
-            assert 'bodymask' in volume and volume['bodymask'].ndim == 3, "Input volume must have attribute " \
-                                                                          "'bodymask' and it is 4d, exit on ToTensor "
-            volume['bodymask'] = torch.from_numpy(volume['bodymask'].astype(dtype=np.float32))
-
         if 'mask' in volume:
             assert 'mask' in volume and volume['mask'].ndim == 4, "Input volume must have attribute 'mask' and it is " \
                                                                   "4d, exit on ToTensor "

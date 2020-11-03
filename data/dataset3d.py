@@ -57,6 +57,10 @@ class Dataset3d(Dataset):
                 }
 
         data = self.transformer(data)
+
+        if self.with_issue_air_mask:
+            # Because the borderMode for air mask is different from other mask
+            data['mask'][-1] = torch.ones_like(data['mask'][-1], dtype=torch.int8) - torch.sum(data['mask'][:-1], dim=0, keepdim=True).gt(0).type(torch.uint8)
         # img, bodymask -> [D, H, W]
         # mask -> [N, D, H, W], N is number of rois
         # mask_flag -> [N], N is number of rois, 1 -> roi with mask, 0 -> roi without mask
@@ -73,6 +77,7 @@ class Dataset3d(Dataset):
                 mask_array.append(m)
                 mask_flag.append(True)
             else:
+                print(f"{pid} doesn't have mask for {roi}")
                 mask_array.append(np.zeros(img_shape))
                 mask_flag.append(False)
         if self.with_issue_air_mask:
@@ -82,8 +87,7 @@ class Dataset3d(Dataset):
                     mask_array.append(m)
                     mask_flag.append(True)
                 else:
-                    mask_array.append(np.zeros(img_shape))
-                    mask_flag.append(False)
+                    raise ValueError("There is no issue or air mask available")
         mask_array = np.asarray(mask_array)
         return mask_array, mask_flag
 

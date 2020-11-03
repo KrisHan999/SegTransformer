@@ -13,7 +13,7 @@ loss:
   dice_loss_weight: 1
 
 write_summary_loss_batch_step: 100
-write_summary_2d_batch_step: 500
+write_summary_2d_batch_step: 200
 
 logging_epoch_step: 1
 val_model_epoch_step: 2
