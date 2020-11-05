@@ -2,3 +2,24 @@ model 1:
 	loss: focal loss and dice loss
 	loss term: attention map from transformer decoder and output.
 	output: output with air and issue
+	
+	issue: loss is not stable, mainly because the focal loss for large ROI overwhelme small ROI. Loss doesn't decrement but increment after certain epoches. Also, the attention map is bad as more training epoches.
+model 2:
+	loss: dice loss
+	issue: Almost same except epoch loss is stable for removing focal loss. But the loss still increment and attention map is bad.
+model 3:
+	loss: dice loss
+	structure: add avgpool with embedding at deepest layer
+	benefit: loss is stable, no jump increament and decreament
+	issue: attention map loss increase. Also all validation loss
+	solution: The final segmentation may need pixel level knowledge, combine pixel feature with output of transformer before it is sent to decoder.
+model 4:
+	loss: dice loss
+	structure: transformer_out = pixel_feature + transformer_out
+	benefit: attention_map_loss is less the model 3
+	issue: training dice loss is higher than model 4, which means the attention output in some sense does harm to segmentation. attention_map_loss doesn't decrease during training. All validation loss increases during training.
+
+Schedule:
+	1. Transformer decoder: tgt_out = input + tgt_out. Add pixel level feature to the output out Transformer, because segmentation may need that feature to behavior better.
+	2. Concate the input of transformer with the output of transformer to enforce more structure feature.
+	3. Deepest layer: Add deformable self-attention mechanism to generate structure knowledge before it is sent to transformer.

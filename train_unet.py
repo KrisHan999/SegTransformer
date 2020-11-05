@@ -16,7 +16,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
 from data.dataloader2d import create_loader_2d
 from data.dataloader3d import create_loader_3d
 from models.backbone import Unet
-from models.segtransformer import SegTransformer
 from models.loss import Criterion
 from util.yaml_util import load_config_yaml
 from util.logging_util import create_logger

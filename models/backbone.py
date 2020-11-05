@@ -56,7 +56,7 @@ class Conv(nn.Module):
 
 
 class UpConv(nn.Module):
-    def __init__(self, ch_in, ch_out, deconv_flag, normalization, activation, num_groups=None):
+    def __init__(self, ch_in, ch_out, deconv_flag=True, normalization='bn', activation='relu', num_groups=None):
         super(UpConv, self).__init__()
         self.ch_in = ch_in
         self.ch_out = ch_out
@@ -116,7 +116,7 @@ class DoubleConv3x3(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, n_channel, start_channel=32):
+    def __init__(self, n_channel, start_channel=32, normalization='bn', activation='relu', num_groups=None):
         """
             initialize encoder
         :param n_channel:
@@ -129,15 +129,15 @@ class Encoder(nn.Module):
         self.channels = np.asarray([start_channel * 2 ** i for i in range(5)])
 
         self.double_conv_1 = DoubleConv3x3(ch_in=self.input_channel, ch_out=self.channels[0],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_2 = DoubleConv3x3(ch_in=self.channels[0], ch_out=self.channels[1],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_3 = DoubleConv3x3(ch_in=self.channels[1], ch_out=self.channels[2],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_4 = DoubleConv3x3(ch_in=self.channels[2], ch_out=self.channels[3],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_5 = DoubleConv3x3(ch_in=self.channels[3], ch_out=self.channels[4],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
 
         self.maxpool_1 = nn.MaxPool2d(kernel_size=2)
         self.maxpool_2 = nn.MaxPool2d(kernel_size=2)
@@ -155,7 +155,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, start_channel, n_class, deep_supervision=False):
+    def __init__(self, start_channel, n_class, deconv_flag=False, normalization='bn', activation='relu', num_groups=None, deep_supervision=False):
         """
             initialize decoder
         :param start_channel:
@@ -169,23 +169,23 @@ class Decoder(nn.Module):
         channels = np.asarray([start_channel * 2 ** i for i in range(5)])
 
         # decoder
-        self.up_conv_5 = UpConv(ch_in=channels[4], ch_out=channels[3], deconv_flag=False,
-                                normalization='bn', activation='relu', num_groups=None)
-        self.up_conv_4 = UpConv(ch_in=channels[3], ch_out=channels[2], deconv_flag=False,
-                                normalization='bn', activation='relu', num_groups=None)
-        self.up_conv_3 = UpConv(ch_in=channels[2], ch_out=channels[1], deconv_flag=False,
-                                normalization='bn', activation='relu', num_groups=None)
-        self.up_conv_2 = UpConv(ch_in=channels[1], ch_out=channels[0], deconv_flag=False,
-                                normalization='bn', activation='relu', num_groups=None)
+        self.up_conv_5 = UpConv(ch_in=channels[4], ch_out=channels[3], deconv_flag=deconv_flag,
+                                normalization=normalization, activation=activation, num_groups=num_groups)
+        self.up_conv_4 = UpConv(ch_in=channels[3], ch_out=channels[2], deconv_flag=deconv_flag,
+                                normalization=normalization, activation=activation, num_groups=num_groups)
+        self.up_conv_3 = UpConv(ch_in=channels[2], ch_out=channels[1], deconv_flag=deconv_flag,
+                                normalization=normalization, activation=activation, num_groups=num_groups)
+        self.up_conv_2 = UpConv(ch_in=channels[1], ch_out=channels[0], deconv_flag=deconv_flag,
+                                normalization=normalization, activation=activation, num_groups=num_groups)
 
         self.double_conv_4 = DoubleConv3x3(ch_in=channels[4], ch_out=channels[3],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_3 = DoubleConv3x3(ch_in=channels[3], ch_out=channels[2],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_2 = DoubleConv3x3(ch_in=channels[2], ch_out=channels[1],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
         self.double_conv_1 = DoubleConv3x3(ch_in=channels[1], ch_out=channels[0],
-                                           normalization='bn', activation='relu', num_groups=None)
+                                           normalization=normalization, activation=activation, num_groups=num_groups)
 
         # output branch
         if deep_supervision:

@@ -93,7 +93,7 @@ class SegTransformer_V1(nn.Module):
                                         num_layers_encoder=2, num_layers_tokener=2, num_layers_decoder=1,
                                         nhead_encoder=4, nhead_tokener=4, nhead_decoder=4,
                                         d_model=channels[-5] + d_pos, d_pos=d_pos,
-                                        dim_feedforward=256)
+                                        dim_feedforward=512)
 
         self.token_fn_54 = TokenFN(channel_in=channels[-1], channel_out=channels[-2], dim_feedforward=256)
         self.token_fn_43 = TokenFN(channel_in=channels[-2], channel_out=channels[-3], dim_feedforward=256)

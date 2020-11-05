@@ -140,7 +140,7 @@ class Normalize(object):
 #                                  With random value, apply to input image(not mask)                                   #
 ########################################################################################################################
 class RandomContrast(object):
-    def __init__(self, alpha_range=(0.5, 1.5), exe_prob=0.5, use_bodymask=False, **kwargs):
+    def __init__(self, alpha_range=(0.7, 1.3), exe_prob=0.5, use_bodymask=False, **kwargs):
         super(RandomContrast, self).__init__()
         self.alpha_range = alpha_range
         self.exe_prob = exe_prob

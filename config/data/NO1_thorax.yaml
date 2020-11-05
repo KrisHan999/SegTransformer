@@ -22,6 +22,8 @@ dataset:
       train:
         - name: Normalize
           use_bodymask: false
+        - name: RandomContrast
+          use_body_mask: false
         - name: RandomAffine
         - name: ElasticDeformation
         - name: ToTensor
