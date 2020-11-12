@@ -18,7 +18,15 @@ model 4:
 	structure: transformer_out = pixel_feature + transformer_out
 	benefit: attention_map_loss is less the model 3
 	issue: training dice loss is higher than model 4, which means the attention output in some sense does harm to segmentation. attention_map_loss doesn't decrease during training. All validation loss increases during training.
-
+model 5:
+	loss: dice loss
+	structure: remove unet decoder, concatenate the output of transformer with enc_out before it is sent to the next transformer. Loss is only calculated based on the attention output, use batch normalization.
+	benefit: retain the high level knowledge of structure by concatenation. 
+	issue: mask is not uniform and val loss might be a issue.
+model 6:
+	loss: dice loss
+	structure: compared to model 5, add a output branch to the end. The input is the combination of enc_out_1 and attemtion_map, wishing the convolution layer could summarize the feature.
+	issue: it appears that convolution will do hard to all attention_map and it doesn't like attention map as input. 
 Schedule:
 	1. Transformer decoder: tgt_out = input + tgt_out. Add pixel level feature to the output out Transformer, because segmentation may need that feature to behavior better.
 	2. Concate the input of transformer with the output of transformer to enforce more structure feature.

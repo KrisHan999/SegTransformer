@@ -10,7 +10,8 @@ from models.backbone import Conv, DoubleConv3x3, UpConv
 
 
 class SegTransformerDecoder(nn.Module):
-    def __init__(self, start_channel, n_class, d_pos=64, input_dim=(512, 512)):
+    def __init__(self, start_channel, n_class, d_pos=64, input_dim=(512, 512), nhead=4,
+                 normalization='bn', activation='relu', num_groups=None):
         super(SegTransformerDecoder, self).__init__()
         if input_dim is None:
             input_dim = [512, 512]
@@ -36,31 +37,31 @@ class SegTransformerDecoder(nn.Module):
 
         self.transformer5 = Transformer(need_generate_query_pos=True,
                                         num_layers_encoder=2, num_layers_tokener=2, num_layers_decoder=1,
-                                        nhead_encoder=4, nhead_tokener=4, nhead_decoder=4,
+                                        nhead_encoder=nhead, nhead_tokener=nhead, nhead_decoder=nhead,
                                         d_model=channels[-1] + d_pos, d_pos=d_pos,
                                         dim_feedforward=512)
 
         self.transformer4 = Transformer(need_generate_query_pos=False,
                                         num_layers_encoder=2, num_layers_tokener=2, num_layers_decoder=1,
-                                        nhead_encoder=4, nhead_tokener=4, nhead_decoder=4,
+                                        nhead_encoder=nhead, nhead_tokener=nhead, nhead_decoder=nhead,
                                         d_model=channels[-2] + d_pos, d_pos=d_pos,
                                         dim_feedforward=512)
 
         self.transformer3 = Transformer(need_generate_query_pos=False,
                                         num_layers_encoder=2, num_layers_tokener=2, num_layers_decoder=1,
-                                        nhead_encoder=4, nhead_tokener=4, nhead_decoder=4,
+                                        nhead_encoder=nhead, nhead_tokener=nhead, nhead_decoder=nhead,
                                         d_model=channels[-3] + d_pos, d_pos=d_pos,
                                         dim_feedforward=512)
 
         self.transformer2 = Transformer(need_generate_query_pos=False,
                                         num_layers_encoder=2, num_layers_tokener=2, num_layers_decoder=1,
-                                        nhead_encoder=4, nhead_tokener=4, nhead_decoder=4,
+                                        nhead_encoder=nhead, nhead_tokener=nhead, nhead_decoder=nhead,
                                         d_model=channels[-4] + d_pos, d_pos=d_pos,
                                         dim_feedforward=512)
 
         self.transformer1 = Transformer(need_generate_query_pos=False,
                                         num_layers_encoder=2, num_layers_tokener=2, num_layers_decoder=1,
-                                        nhead_encoder=4, nhead_tokener=4, nhead_decoder=4,
+                                        nhead_encoder=nhead, nhead_tokener=nhead, nhead_decoder=nhead,
                                         d_model=channels[-5] + d_pos, d_pos=d_pos,
                                         dim_feedforward=512)
 
@@ -69,20 +70,20 @@ class SegTransformerDecoder(nn.Module):
         self.token_fn_32 = TokenFN(channel_in=channels[-3], channel_out=channels[-4], dim_feedforward=256)
         self.token_fn_21 = TokenFN(channel_in=channels[-4], channel_out=channels[-5], dim_feedforward=256)
 
-        self.upconv5 = UpConv(ch_in=channels[4], ch_out=channels[3])
-        self.upconv4 = UpConv(ch_in=channels[3], ch_out=channels[2])
-        self.upconv3 = UpConv(ch_in=channels[2], ch_out=channels[1])
-        self.upconv2 = UpConv(ch_in=channels[1], ch_out=channels[0])
+        self.upconv5 = UpConv(ch_in=channels[4], ch_out=channels[3], normalization=normalization, activation=activation, num_groups=num_groups)
+        self.upconv4 = UpConv(ch_in=channels[3], ch_out=channels[2], normalization=normalization, activation=activation, num_groups=num_groups)
+        self.upconv3 = UpConv(ch_in=channels[2], ch_out=channels[1], normalization=normalization, activation=activation, num_groups=num_groups)
+        self.upconv2 = UpConv(ch_in=channels[1], ch_out=channels[0], normalization=normalization, activation=activation, num_groups=num_groups)
 
         self.upscore5 = nn.Upsample(scale_factor=16, mode='bilinear', align_corners=False)
         self.upscore4 = nn.Upsample(scale_factor=8, mode='bilinear', align_corners=False)
         self.upscore3 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=False)
         self.upscore2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
 
-        self.double_conv_4 = DoubleConv3x3(channels[3]*2, channels[3])
-        self.double_conv_3 = DoubleConv3x3(channels[2] * 2, channels[2])
-        self.double_conv_2 = DoubleConv3x3(channels[1] * 2, channels[1])
-        self.double_conv_1 = DoubleConv3x3(channels[0] * 2, channels[0])
+        self.double_conv_4 = DoubleConv3x3(channels[3]*2, channels[3], normalization=normalization, activation=activation, num_groups=num_groups)
+        self.double_conv_3 = DoubleConv3x3(channels[2] * 2, channels[2], normalization=normalization, activation=activation, num_groups=num_groups)
+        self.double_conv_2 = DoubleConv3x3(channels[1] * 2, channels[1], normalization=normalization, activation=activation, num_groups=num_groups)
+        self.double_conv_1 = DoubleConv3x3(channels[0] * 2, channels[0], normalization=normalization, activation=activation, num_groups=num_groups)
 
     def forward(self, enc_out):
         [enc_out_1, enc_out_2, enc_out_3, enc_out_4, enc_out_5] = enc_out
@@ -169,11 +170,12 @@ class SegTransformerDecoder(nn.Module):
 
 
 class OutputBranch(nn.Module):
-    def __init__(self, start_channel, n_class):
+    def __init__(self, start_channel, n_class, normalization='bn', activation='relu', num_groups=None):
         super(OutputBranch, self).__init__()
         initial_channel = start_channel + n_class * 5
         self.module = nn.Sequential(
-            DoubleConv3x3(ch_in=initial_channel, ch_out=start_channel),
+            DoubleConv3x3(ch_in=initial_channel, ch_out=start_channel,
+                          normalization=normalization, activation=activation, num_groups=num_groups),
             Conv(ch_in=start_channel, ch_out=n_class, normalization=None, activation=None,
                  num_groups=None)
         )
@@ -186,7 +188,8 @@ class OutputBranch(nn.Module):
 
 
 class SegTransformer_V2(nn.Module):
-    def __init__(self, n_channel, start_channel, n_class, d_pos=64, input_dim=(512, 512)):
+    def __init__(self, n_channel, start_channel, n_class, d_pos=64, input_dim=(512, 512),
+                 nhead=4, normalization='bn', activation='relu', num_groups=None):
         super(SegTransformer_V2, self).__init__()
         if input_dim is None:
             input_dim = [512, 512]
@@ -194,11 +197,21 @@ class SegTransformer_V2(nn.Module):
         self.start_channel = start_channel
         self.n_class = n_class
 
-        self.backbone_encoder = Encoder(n_channel=n_channel, start_channel=start_channel)
-        self.segtransformer_decoder = SegTransformerDecoder(start_channel=start_channel, n_class=n_class, d_pos=d_pos, input_dim=input_dim)
+        self.backbone_encoder = Encoder(n_channel=n_channel, start_channel=start_channel,
+                                        normalization=normalization, activation=activation, num_groups=num_groups)
+        self.segtransformer_decoder = SegTransformerDecoder(start_channel=start_channel, n_class=n_class, d_pos=d_pos,
+                                                            input_dim=input_dim, nhead=nhead,
+                                                            normalization=normalization, activation=activation,
+                                                            num_groups=num_groups)
+        # self.output_branch = OutputBranch(start_channel=start_channel, n_class=n_class,
+        #                                   normalization=normalization, activation=activation, num_groups=num_groups)
 
     def forward(self, x):
         enc_out = self.backbone_encoder(x)
         attention_map_out = self.segtransformer_decoder(enc_out)
 
         return attention_map_out
+
+        # out = self.output_branch(enc_out[0], attention_map_out)
+        # return [out], attention_map_out
+

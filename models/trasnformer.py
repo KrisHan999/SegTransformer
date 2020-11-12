@@ -34,7 +34,8 @@ class Transformer(nn.Module):
                  dim_feedforward=2048, dropout=0.1, activation="relu", return_attention_map=True):
         super(Transformer, self).__init__()
         self.return_attention_map = return_attention_map
-        self.encoder = TransformerEncoder(need_generate_query_pos, num_layers_encoder, d_model=d_model, d_pos=d_pos, nhead=nhead_encoder,
+        self.encoder = TransformerEncoder(need_generate_query_pos, num_layers_encoder, d_model=d_model, d_pos=d_pos,
+                                          nhead=nhead_encoder,
                                           dim_feedforward=dim_feedforward, dropout=dropout, activation=activation,
                                           return_attention_map=return_attention_map)
         self.tokener = TransformerToken(num_layers=num_layers_tokener, d_model=d_model, nhead=nhead_tokener,
@@ -61,7 +62,8 @@ class Transformer(nn.Module):
             pos_tgt_from_tokener: [L, N, E_p]
             attention_map_from_decoder: [N, S, L]
         """
-        tgt_from_encoder, pos_tgt_from_encoder, attention_map_from_encoder = self.encoder(src, pos_src, query, query_pos)
+        tgt_from_encoder, pos_tgt_from_encoder, attention_map_from_encoder = self.encoder(src, pos_src, query,
+                                                                                          query_pos)
         tgt_from_tokener, pos_tgt_from_tokener = self.tokener(tgt_from_encoder, pos_tgt_from_encoder)
         tgt_from_decoder, attention_map_from_decoder = self.decoder(tgt_from_tokener,
                                                                     pos_tgt_from_tokener,
@@ -71,7 +73,8 @@ class Transformer(nn.Module):
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, need_generate_query_pos, num_layers, d_model, d_pos, nhead, dim_feedforward=2048, dropout=0.1, activation="relu",
+    def __init__(self, need_generate_query_pos, num_layers, d_model, d_pos, nhead, dim_feedforward=2048, dropout=0.1,
+                 activation="relu",
                  return_attention_map=True):
         super(TransformerEncoder, self).__init__()
         self.need_generate_query_pos = need_generate_query_pos
@@ -300,3 +303,70 @@ class TransformerDecoderLayer(nn.Module):
             return tgt, attention_map
         else:
             return tgt, None
+
+
+class BasicTransformer(nn.Module):
+    def __init__(self, num_layers, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu",
+                 use_key_pos=True, use_query_pos=True):
+        super(BasicTransformer, self).__init__()
+        self.use_key_pos = use_key_pos
+        self.use_query_pos = use_query_pos
+        self.layers = nn.ModuleList([BasicTransformerLayer(d_model, nhead,
+                                                           dim_feedforward=dim_feedforward,
+                                                           dropout=dropout,
+                                                           activation=activation)
+                                     for i in range(num_layers)])
+
+    def forward(self, key, value, query, pos_src: Optional[Tensor]=None, pos_query: Optional[Tensor]=None):
+        tgt = query
+        attention_map = None
+        for layer in self.layers:
+            if self.use_key_pos:
+                key = key + pos_src
+            if self.use_query_pos:
+                tgt = tgt + pos_query
+            res = layer(key, value, tgt)
+            tgt = res['tgt']
+            attention_map = res['attn_map']
+
+        return tgt, attention_map
+
+
+class BasicTransformerLayer(nn.Module):
+    def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
+        super(BasicTransformerLayer, self).__init__()
+        self.d_model = d_model
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+        self.dropout3 = nn.Dropout(dropout)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.linear1 = nn.Linear(d_model, dim_feedforward)
+        self.linear2 = nn.Linear(dim_feedforward, d_model)
+        self.activation = _get_activation_fn(activation)
+
+    def forward(self, key: Tensor, value: Tensor, query: Tensor):
+        """
+        In this layer, token is the src, pixel feature is the query.
+        :param src: [S, N, E]
+        :param query: [L, N, E]
+        :return:
+            tgt: [L, N, E]
+            attention_map: None or [N, L, S]
+        """
+        if key.shape[2] != self.d_model or value.shape[2] != self.d_model or query.shape[2] != self.d_model:
+            raise ValueError(
+                f"Error in dimension checking - {self.d_model}, {key.shape[2]},  {value.shape[2]}, {query.shape[2]}")
+        tgt, attention_map = self.self_attn(query=query, key=key, value=value)
+        tgt = query + self.dropout1(tgt)
+        tgt = self.norm1(tgt)
+        tgt_2 = self.linear2(self.dropout2(self.activation(self.linear1(tgt))))
+        tgt = tgt + self.dropout3(tgt_2)
+        tgt = self.norm2(tgt)
+
+        res = {
+            'tgt': tgt,
+            'attn_map': attention_map
+        }
+        return res

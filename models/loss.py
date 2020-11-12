@@ -5,7 +5,7 @@ from typing import Optional
 from torch import Tensor
 
 
-def _dice_loss(pred, target, target_roi_weight, need_sigmoid=True):
+def _dice_loss(pred, target, target_roi_weight, need_sigmoid=True, for_val=False):
     """
         https://arxiv.org/pdf/1812.02427.pdf -> batch dice coefficient
     :param input: (N, C, d1, d2, d3, ...) -> binary mask
@@ -15,6 +15,8 @@ def _dice_loss(pred, target, target_roi_weight, need_sigmoid=True):
             weight for slice are same for slices from the same volume.
     :return:
     """
+    def update_loss(loss, for_val):
+        return loss
     if need_sigmoid:
         pred = pred.sigmoid()
     # If there is no ground truth for rois in one volume, then we ignore the dice between pred and target
@@ -24,7 +26,8 @@ def _dice_loss(pred, target, target_roi_weight, need_sigmoid=True):
     batch_denominator = torch.sum(denominator, dim=0)
     batch_roi_weight = torch.sum(target_roi_weight, dim=0).gt(0)  # -> shape (C)
     DSC = (2 * batch_numerator + 1) / (batch_denominator + 1)
-    DSC_loss = torch.sum((1 - DSC) * batch_roi_weight)
+    loss = update_loss(1-DSC, for_val)
+    DSC_loss = torch.sum(loss * batch_roi_weight)
     return DSC_loss
 
 
@@ -56,7 +59,7 @@ class Criterion(nn.Module):
         self.deep_supervision = config['deep_supervision']
 
     def forward(self, pred, target, target_roi_weight, deep_supervision=False, need_sigmoid=True,
-                layer_weight: Optional[Tensor] = None):
+                layer_weight: Optional[Tensor] = None, for_val=False):
         dice_loss = 0
         loss = 0
         loss_dict = {}
@@ -66,7 +69,7 @@ class Criterion(nn.Module):
                     weight = layer_weight[i]
                 else:
                     weight = 1
-                dice_loss_ = _dice_loss(pred_single, target, target_roi_weight, need_sigmoid=need_sigmoid)
+                dice_loss_ = _dice_loss(pred_single, target, target_roi_weight, need_sigmoid=need_sigmoid, for_val=for_val)
                 loss_ = dice_loss_ * self.dice_loss_weight * weight
                 # print(focal_loss_, dice_loss_, loss_)
                 dice_loss += dice_loss_
@@ -76,7 +79,7 @@ class Criterion(nn.Module):
                     # "loss": loss_.detach().item()
                 }
         else:
-            dice_loss = _dice_loss(pred[-1], target, target_roi_weight, need_sigmoid=need_sigmoid)
+            dice_loss = _dice_loss(pred[-1], target, target_roi_weight, need_sigmoid=need_sigmoid, for_val=for_val)
             loss = dice_loss * self.dice_loss_weight
 
             loss_dict = {

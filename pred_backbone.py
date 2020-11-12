@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from data.dataloader2d import create_loader_2d
 from data.dataloader3d import create_loader_3d
-from models.segtransformer import SegTransformer as SegTransformer
+from models.backbone import Unet
 from util.yaml_util import load_config_yaml
 from util.model_util import load_checkpoint_model
 
@@ -30,14 +30,12 @@ def pred_with_model(model, ckpt_dir, ckpt_fn, pred_save_dir, config, data_config
                 for idx, batch_2d in enumerate(dataloader_2d):
                     img = batch_2d['img'].to(device=device, dtype=torch.float32)  # [N, n_channel, H, W]
                     target_slice = batch_2d['target_slice']  # shape -> [N]
-                    attention_map_out = model(img)  # shape -> (N, C, H, W), C is N_roi
-                    mask_pred = attention_map_out[0]
+                    mask_pred = model(img)  # shape -> (N, C, H, W), C is N_roi
+                    mask_pred = mask_pred[0]
                     mask_pred = torch.transpose(mask_pred, 0, 1)  # shape -> (C, N, H, W)
-                    mask_pred_all[:, target_slice] = mask_pred.gt(0.5)
+                    mask_pred_all[:, target_slice] = mask_pred.gt(0)
 
                 os.makedirs(config['pred_save_dir'], exist_ok=True)
-                if data_config['dataset']['3d']['with_issue_air_mask']:
-                    roi_names += ["issue", "air"]
                 for i, roi in enumerate(roi_names):
                     nrrd.write(os.path.join(pred_save_dir, f'{pid}_{roi}.nrrd'), mask_pred_all[i].numpy().astype(np.uint8))
                 pbar.update()
@@ -60,9 +58,7 @@ def main():
     n_channel = data_config['dataset']['2d']['n_slice']
     n_class = len(roi_names)
     start_channel = int(config['start_channel'])
-    model = SegTransformer(n_channel=n_channel, start_channel=start_channel, n_class=n_class,
-                           d_pos=64, input_dim=(512, 512),
-                           nhead=4, normalization='bn', activation='relu', num_groups=4).to(device)
+    model = Unet(n_channel=n_channel, start_channel=start_channel, n_class=n_class).to(device)
 
     ckpt_dir = config['ckpt_dir']
     ckpt_fn = config['ckpt_fn']

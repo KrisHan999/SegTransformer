@@ -4,11 +4,13 @@ import numpy as np
 from typing import Optional
 
 
-def get_normalization(ch_out, normalization, num_groups=None):
+def get_normalization(ch_out, normalization, num_groups=None, ln_norm_shape=None):
     if normalization == 'bn':
         norm = nn.BatchNorm2d(num_features=ch_out)
     elif normalization == 'in':
         norm = nn.InstanceNorm2d(num_features=ch_out)
+    elif normalization == 'ln':
+        norm = nn.LayerNorm(ln_norm_shape)
     elif normalization == 'gn':
         norm = nn.GroupNorm(num_groups=num_groups, num_channels=ch_out)
     elif normalization is None:

@@ -15,7 +15,7 @@ import glob
 os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
 from data.dataloader2d import create_loader_2d
 from data.dataloader3d import create_loader_3d
-from models.segtransformer_v2 import SegTransformer_V2 as SegTransformer
+from models.segtransformer import SegTransformer_V2 as SegTransformer
 from models.loss import Criterion
 from util.yaml_util import load_config_yaml
 from util.logging_util import create_logger
@@ -50,7 +50,9 @@ def main():
     start_channel = int(config['start_channel'])
     logger.info(f'create model with n_channel={n_channel}, start_channel={start_channel}, n_class={n_class}')
 
-    model = SegTransformer(n_channel=n_channel, start_channel=start_channel, n_class=n_class).to(device)
+    model = SegTransformer(n_channel=n_channel, start_channel=start_channel, n_class=n_class,
+                           d_pos=64, input_dim=(512, 512),
+                           nhead=4, normalization='bn', activation='relu', num_groups=None).to(device)
 
     logger.info(f"model_dir: {config['ckpt_dir']}")
 
@@ -206,6 +208,11 @@ def main():
                 logger.info(
                     f"Epoch: {epoch}/{config['n_epoch']}, Train Loss: {epoch_loss}, Train Loss DSC: {epoch_loss_dice}")
 
+                os.makedirs(config['ckpt_dir'], exist_ok=True)
+                save_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler,
+                                epoch=epoch, global_step=global_step,
+                                ckpt_dir=config['ckpt_dir'], ckpt_fn=f'ckpt_{date_time}_Epoch_{epoch}.ckpt')
+
             # validation and save model
             if (epoch + 1) % config['val_model_epoch_step'] == 0:
                 val_loss, val_dice_loss, val_attn_loss_dict = val(model, criterion, config, data_config,
@@ -219,10 +226,6 @@ def main():
                 logger.info(
                     f"Epoch: {epoch}/{config['n_epoch']}, Validation Loss: {val_loss}, Validation Loss Dice: {val_dice_loss}")
 
-                os.makedirs(config['ckpt_dir'], exist_ok=True)
-                save_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler,
-                                epoch=epoch, global_step=global_step,
-                                ckpt_dir=config['ckpt_dir'], ckpt_fn=f'ckpt_{date_time}_Epoch_{epoch}.ckpt')
 
                 if best_loss > val_dice_loss:
                     best_loss = val_dice_loss
