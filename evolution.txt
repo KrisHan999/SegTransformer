@@ -26,8 +26,13 @@ model 5:
 model 6:
 	loss: dice loss
 	structure: compared to model 5, add a output branch to the end. The input is the combination of enc_out_1 and attemtion_map, wishing the convolution layer could summarize the feature.
-	issue: it appears that convolution will do hard to all attention_map and it doesn't like attention map as input. 
-Schedule:
-	1. Transformer decoder: tgt_out = input + tgt_out. Add pixel level feature to the output out Transformer, because segmentation may need that feature to behavior better.
-	2. Concate the input of transformer with the output of transformer to enforce more structure feature.
-	3. Deepest layer: Add deformable self-attention mechanism to generate structure knowledge before it is sent to transformer.
+	issue: it appears that convolution will do hard to all attention_map and it doesn't like attention map as input.
+
+backbone_v1:
+	use classic unet structure, add a transfromer at the end of double3x3conv layer at the top layer
+	v1:  
+	v2: use bg + roi + loss**2
+	v3: use issue + air + roi + loss**2
+GSegTrans:
+	v1: model_5 - pos_embedding - avgpool - add_enc_out_to_out_of_transformer: feed_forward channel double the channel
+	v2: same as v1: feed_forward channel is same as channel

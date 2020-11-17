@@ -4,7 +4,7 @@ from data.dataloader3d import create_loader_3d
 from tqdm import tqdm
 
 
-def val(model, criterion, data_config, n_channel, logger, writer, global_step, device):
+def val(model, criterion, roi_names, data_config, n_channel, logger, writer, global_step, device):
     model.eval()
     dataloader_3d = create_loader_3d(data_config, 'val')
     val_loss = 0
@@ -32,12 +32,23 @@ def val(model, criterion, data_config, n_channel, logger, writer, global_step, d
             writer.add_scalar('Loss_val/val', loss_scalar, global_step)
             writer.add_scalar('Loss_val/val_dice', loss_dice_scalar, global_step)
             writer.add_images('val/images', torch.unsqueeze(img[:, n_channel // 2], 1), global_step)
-            for r_i, roi_name in enumerate(data_config['dataset']['3d']['roi_names']):
+            for r_i, roi_name in enumerate(roi_names):
                 writer.add_images(f'val/masks_{roi_name}_gt', mask_gt[:, r_i:r_i + 1], global_step)
                 writer.add_images(f'val/masks_{roi_name}_pred', out[0][:, r_i:r_i + 1], global_step)
-
-            writer.add_images('val/pred_masks',
-                              torch.sum(out[0] > 0.5, dim=1, keepdim=True) >= 1, global_step)
+            if data_config['dataset']['3d']['with_issue_air_mask']:
+                writer.add_images('val/masks_gt', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True),
+                                  global_step)
+                writer.add_images('val/masks_pred',
+                                  torch.sum(out[0][:, :-2], dim=1, keepdim=True),
+                                  global_step)
+            elif data_config['dataset']['3d']['with_background']:
+                writer.add_images('val/masks_gt', torch.sum(mask_gt[:, :-1], dim=1, keepdim=True), global_step)
+                writer.add_images('val/masks_pred',
+                                  torch.sum(out[0][:, :-1], dim=1, keepdim=True), global_step)
+            else:
+                writer.add_images('val/masks_gt', torch.sum(mask_gt, dim=1, keepdim=True), global_step)
+                writer.add_images('val/masks_pred',
+                                  torch.sum(out[0], dim=1, keepdim=True), global_step)
 
     model.train()
     return val_loss, val_dice_loss

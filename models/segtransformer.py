@@ -135,7 +135,7 @@ class SegTransformerDecoder(nn.Module):
             query=input_token_embedding,
             query_pos=None)
 
-        transformer_out_5 = transformer_out_5.permute(1, 2, 0).view(*enc_out_5.shape) #  + enc_out_5
+        transformer_out_5 = transformer_out_5.permute(1, 2, 0).view(*enc_out_5.shape) + enc_out_5
         src_cat_4 = torch.cat([enc_out_4, self.upconv5(transformer_out_5)], dim=1)
         src_4 = self.double_conv_4(src_cat_4)
         src_4 = src_4.flatten(2).permute(2, 0, 1)
@@ -145,7 +145,7 @@ class SegTransformerDecoder(nn.Module):
             query=self.token_fn_54(token_out_5),
             query_pos=token_pos_5)
 
-        transformer_out_4 = transformer_out_4.permute(1, 2, 0).view(*enc_out_4.shape) #  + enc_out_4
+        transformer_out_4 = transformer_out_4.permute(1, 2, 0).view(*enc_out_4.shape) + enc_out_4
         src_cat_3 = torch.cat([enc_out_3, self.upconv4(transformer_out_4)], dim=1)
         src_3 = self.double_conv_3(src_cat_3)
         src_3 = src_3.flatten(2).permute(2, 0, 1)
@@ -155,7 +155,7 @@ class SegTransformerDecoder(nn.Module):
             query=self.token_fn_43(token_out_4),
             query_pos=token_pos_4)
 
-        transformer_out_3 = transformer_out_3.permute(1, 2, 0).view(*enc_out_3.shape) #  + enc_out_3
+        transformer_out_3 = transformer_out_3.permute(1, 2, 0).view(*enc_out_3.shape) + enc_out_3
         src_cat_2 = torch.cat([enc_out_2, self.upconv3(transformer_out_3)], dim=1)
         src_2 = self.double_conv_2(src_cat_2)
         src_2 = src_2.flatten(2).permute(2, 0, 1)
@@ -165,7 +165,7 @@ class SegTransformerDecoder(nn.Module):
             query=self.token_fn_32(token_out_3),
             query_pos=token_pos_3)
 
-        transformer_out_2 = transformer_out_2.permute(1, 2, 0).view(*enc_out_2.shape) #  + enc_out_2
+        transformer_out_2 = transformer_out_2.permute(1, 2, 0).view(*enc_out_2.shape) + enc_out_2
         src_cat_1 = torch.cat([enc_out_1, self.upconv2(transformer_out_2)], dim=1)
         src_1 = self.double_conv_1(src_cat_1)
         src_1 = src_1.flatten(2).permute(2, 0, 1)

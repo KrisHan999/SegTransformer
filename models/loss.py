@@ -16,7 +16,10 @@ def _dice_loss(pred, target, target_roi_weight, need_sigmoid=True, for_val=False
     :return:
     """
     def update_loss(loss, for_val):
-        return loss
+        if for_val:
+            return loss
+        else:
+            return loss ** 2
     if need_sigmoid:
         pred = pred.sigmoid()
     # If there is no ground truth for rois in one volume, then we ignore the dice between pred and target

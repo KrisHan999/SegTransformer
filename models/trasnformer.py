@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.init import xavier_normal_, xavier_uniform_
 import copy
 from torch import Tensor
 from typing import Optional
@@ -307,8 +308,9 @@ class TransformerDecoderLayer(nn.Module):
 
 class BasicTransformer(nn.Module):
     def __init__(self, num_layers, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu",
-                 use_key_pos=True, use_query_pos=True):
+                 use_key_pos=True, use_query_pos=True, update_key_value_using_query=False):
         super(BasicTransformer, self).__init__()
+        self.update_key_value_using_query = update_key_value_using_query
         self.use_key_pos = use_key_pos
         self.use_query_pos = use_query_pos
         self.layers = nn.ModuleList([BasicTransformerLayer(d_model, nhead,
@@ -318,6 +320,8 @@ class BasicTransformer(nn.Module):
                                      for i in range(num_layers)])
 
     def forward(self, key, value, query, pos_src: Optional[Tensor]=None, pos_query: Optional[Tensor]=None):
+        if self.update_key_value_using_query:
+            assert key.shape[0] == query.shape[0], "Can't update key and value with different shape of query"
         tgt = query
         attention_map = None
         for layer in self.layers:
@@ -325,9 +329,12 @@ class BasicTransformer(nn.Module):
                 key = key + pos_src
             if self.use_query_pos:
                 tgt = tgt + pos_query
-            res = layer(key, value, tgt)
+            res = layer(key=key, value=value, query=tgt)
             tgt = res['tgt']
             attention_map = res['attn_map']
+            if self.update_key_value_using_query:
+                key = tgt
+                value = tgt
 
         return tgt, attention_map
 
@@ -370,3 +377,5 @@ class BasicTransformerLayer(nn.Module):
             'attn_map': attention_map
         }
         return res
+
+

@@ -7,7 +7,8 @@ dataset:
                      lungr: 3,
                      spinalcord: 4,
                      trachea: 5}
-    with_issue_air_mask: false
+    with_issue_air_mask: true
+    with_background: false
     # paths to the datasets
     data_dir: '/mnt/hdd10t2/kunhan/data/All_medical_volume_dataset/inhouse/NO_1_hospital/Thorax/Fullnrrd_kunhan_RS_gt_resample'
     # path to save predicted mask

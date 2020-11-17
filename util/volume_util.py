@@ -42,6 +42,7 @@ def show_3d(volume):
         plt.figure(figsize=(15, 15))
         print(z_range[k])
         plt.imshow(volume[z_range[k]])
+        plt.colorbar()
 
     w.interact(fz, k=w.IntSlider(min=0, max=len(z_range) - 1, step=1, value=0))
 

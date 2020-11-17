@@ -12,10 +12,11 @@ import glob
 ###################################################################################
 # set cuda visible
 ###################################################################################
-os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1, 2, 3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1, 2, 3'
 from data.dataloader2d import create_loader_2d
 from data.dataloader3d import create_loader_3d
-from models.segtransformer import SegTransformer as SegTransformer
+# from models.segtransformer import SegTransformer as SegTransformer
+from models.GSegTrans.segtransformer import SegTransformer
 from models.loss import Criterion
 from util.yaml_util import load_config_yaml
 from util.logging_util import create_logger
@@ -45,14 +46,19 @@ def main():
     ###################################################################################
     n_channel = data_config['dataset']['2d']['n_slice']
     n_class = len(data_config['dataset']['3d']['roi_names'])
+    roi_names = data_config['dataset']['3d']['roi_names']
     if data_config['dataset']['3d']['with_issue_air_mask']:
         n_class += 2
+        roi_names += ['issue_mask', 'air_mask']
+    if data_config['dataset']['3d']['with_background']:
+        n_class += 1
+        roi_names += ['bg']
     start_channel = int(config['start_channel'])
     logger.info(f'create model with n_channel={n_channel}, start_channel={start_channel}, n_class={n_class}')
 
     model = SegTransformer(n_channel=n_channel, start_channel=start_channel, n_class=n_class,
-                           d_pos=64, input_dim=(512, 512),
-                           nhead=4, normalization='bn', activation='relu', num_groups=None).to(device)
+                           input_dim=(512, 512), nhead=4, normalization='bn', activation='relu', num_groups=None,
+                           with_background=data_config['dataset']['3d']['with_background']).to(device)
 
     logger.info(f"model_dir: {config['ckpt_dir']}")
 
@@ -177,21 +183,29 @@ def main():
 
                     if (global_step + 1) % (config['write_summary_2d_batch_step']) == 0:
                         writer.add_images('train/images', torch.unsqueeze(img[:, n_channel // 2], 1), global_step)
-                        writer.add_images('train/masks_gt', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True),
-                                          global_step)
-                        for r_i, roi_name in enumerate((data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
+
+                        for r_i, roi_name in enumerate(roi_names):
                             writer.add_images(f'train/masks_{roi_name}_gt', mask_gt[:, r_i:r_i + 1], global_step)
                             writer.add_images(f'train/masks_{roi_name}_pred', attention_map_out[0][:, r_i:r_i + 1], global_step)
                         if data_config['dataset']['3d']['with_issue_air_mask']:
+                            writer.add_images('train/masks_gt', torch.sum(mask_gt[:, :-2], dim=1, keepdim=True),
+                                              global_step)
                             writer.add_images('train/masks_pred',
                                               torch.sum(attention_map_out[0][:, :-2], dim=1, keepdim=True),
                                               global_step)
+                        elif data_config['dataset']['3d']['with_background']:
+                            writer.add_images('train/masks_gt', torch.sum(mask_gt[:, :-1], dim=1, keepdim=True),
+                                              global_step)
+                            writer.add_images('train/masks_pred',
+                                              torch.sum(attention_map_out[0][:, :-1], dim=1, keepdim=True),
+                                              global_step)
                         else:
+                            writer.add_images('train/masks_gt', torch.sum(mask_gt, dim=1, keepdim=True),
+                                              global_step)
                             writer.add_images('train/masks_pred',
                                               torch.sum(attention_map_out[0], dim=1, keepdim=True), global_step)
                         for l_i, attn_map_single in enumerate(attention_map_out):
-                            for r_i, roi_name in enumerate(
-                                    (data_config['dataset']['3d']['roi_names'] + ["issue", "air"])):
+                            for r_i, roi_name in enumerate(roi_names):
                                 writer.add_images(f'train/masks_{roi_name}_pred_layer_{l_i}',
                                                   attn_map_single[:, r_i:r_i + 1], global_step)
                 pbar.update()
@@ -215,7 +229,7 @@ def main():
 
             # validation and save model
             if (epoch + 1) % config['val_model_epoch_step'] == 0:
-                val_loss, val_dice_loss, val_attn_loss_dict = val(model, criterion, config, data_config,
+                val_loss, val_dice_loss, val_attn_loss_dict = val(model, criterion, config, roi_names, data_config,
                                                                   n_channel, logger, writer,
                                                                   global_step, device)
                 writer.add_scalar('Loss_epoch_val/val', val_loss, epoch)
